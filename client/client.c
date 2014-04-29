@@ -23,9 +23,10 @@ int main(int argc, char** argv) {
     fprintf(stderr, "Usage: [username]\n");
     exit(0);
   }
+
   fprintf(stdout, "Password: ");
-  // filegetline(password, 16, stdin);
   getuserpass(password, 16, stdin);
+  fprintf(stdout, "\n");
 
   struct sockaddr_in serv_addr;
   int sockfd;
@@ -90,6 +91,7 @@ int filegetline(char s[],int lim, FILE *fp)
   return i;
 }
 
+/* Reads a password by not displaying it on the screen */
 size_t getuserpass(char *line, size_t lim, FILE *fp) {
   struct termios old, new;
   int nread;
