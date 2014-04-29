@@ -29,7 +29,6 @@ int main(int argc, char** argv) {
   if(argc == 2) {
     fprintf(stdout, "Enter new username: ");
     
-    
     filegetline(name, 16, stdin);
     fprintf(stdout, "Enter password: ");
     filegetline(password, 16, stdin);
@@ -39,7 +38,6 @@ int main(int argc, char** argv) {
     fprintf(fp, "%s-%s", user, password);
     fclose(fp);
   }
-
 
   struct sockaddr_in my_addr, cli_addr;
   int sockfd;

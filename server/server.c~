@@ -1,4 +1,5 @@
-f#include <arpa/inet.h>
+
+#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -10,26 +11,36 @@ f#include <arpa/inet.h>
 #define BUFLEN 4096
 #define IP "127.0.0.1"
 #define PORT 1234
+#define NAME "server"
 
 int filegetline(char *, int, FILE *);
 
 int main(int argc, char** argv) {
 
   FILE *fp = fopen("masterlist.txt", "a+");
-  char* username = (char *)malloc(sizeof(char)* 32);
+  char* name = (char *)malloc(sizeof(char)* 16);
   char* password = (char *)malloc(sizeof(char) * 16);
-  char* line = (char *)malloc(sizeof(char) * 48);
+  char* user = (char *)malloc(sizeof(char) * 16);
+ 
+  if(argc > 2 ) {
+    // Usage statement
+  }
   
   if(argc == 2) {
-    fprintf(stdout, "Enter new username.\n");
-    fgets(username, sizeof(username), stdin);
-    fprintf(stdout, "Enter new password.\n");
-    fgets(password, sizeof(password), stdin);
+    fprintf(stdout, "Enter new username: ");
     
-    strcat(line, username);
-    strcat(line, password);
-    fputs(line, fp);
+    
+    filegetline(name, 16, stdin);
+    fprintf(stdout, "Enter password: ");
+    filegetline(password, 16, stdin);
+    
+    strncpy(user, name, strlen(name)-1);
+   
+    fprintf(fp, "%s-%s", user, password);
+    fclose(fp);
+    fprintf(stdout, "user is %s", user);
   }
+
 
   struct sockaddr_in my_addr, cli_addr;
   int sockfd;
@@ -48,18 +59,22 @@ int main(int argc, char** argv) {
     fprintf(stderr, "Error: bind()");
   }
 
-  // Recieve username and password for authentication
+  // Receive username and password for authentication
 
   // Messaging
 
   while(1) {
+
+    // receive from client
     if(recvfrom(sockfd, buf, BUFLEN, 0, (struct sockaddr*)&cli_addr, &slen) == -1) {
       fprintf(stderr, "Error: recvfrom()");
     }
 
-    fprintf(stdout, "%s", buf);
+    fprintf(stdout, "<%s>%s", user, buf);
 
-    fgets(buf, BUFLEN, stdin);
+    // send to client
+    fprintf(stdout, "<%s>", NAME);
+    filegetline(buf, BUFLEN, stdin);
 
     if(sendto(sockfd, buf, BUFLEN, 0, (struct sockaddr*)&cli_addr, slen) == -1) {
       fprintf(stderr, "Error: sendto()\n");
@@ -81,3 +96,4 @@ int filegetline(char s[],int lim, FILE *fp)
   s[i] = '\0';
   return i;
 }
+
