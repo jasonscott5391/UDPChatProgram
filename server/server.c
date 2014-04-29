@@ -1,4 +1,3 @@
-
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/types.h>
@@ -19,15 +18,17 @@ size_t getuserpass(char *, size_t, FILE *);
 
 int main(int argc, char** argv) {
 
-  FILE *fp = fopen("masterlist.txt", "a+");
+  FILE *fp;
   char* name = (char *)malloc(sizeof(char)* 16);
   char* password = (char *)malloc(sizeof(char) * 16);
   char* user = (char *)malloc(sizeof(char) * 16);
  
   if(argc > 2 ) {
-    // Usage statement
+    fprintf(stderr, "Usage: %s [-n]\n n: Create new user.\n", argv[0]);
+    exit(0);
   }
-  
+
+  // Add new user
   if(argc == 2) {
     fprintf(stdout, "Enter new username: ");
     
@@ -38,7 +39,12 @@ int main(int argc, char** argv) {
     fprintf(stdout, "\n");
 
     strncpy(user, name, strlen(name)-1);
-   
+    
+    if((fp = fopen("masterlist.txt", "a+")) == NULL) {
+      fprintf(stderr, "Error opening master file!\n");
+      exit(0);
+    }
+
     fprintf(fp, "%s-%s", user, password);
     fclose(fp);
   }
@@ -62,14 +68,46 @@ int main(int argc, char** argv) {
 
   // Receive username and password for authentication
   int i = 1;
+  user = (char *)realloc(user, 16);
+  password = (char *)realloc(password, 16);
+  int len;
+  char *line = (char *)malloc(sizeof(char) * 16);
+
+  // Authentication loop
   while(i) {
-    i=0;
     
+    // Receive username
+    if(recvfrom(sockfd, user, 16, 0, (struct sockaddr*)&cli_addr, &slen) == -1) {
+      fprintf(stderr, "Error: username recvfrom()");
+    }
+
+    // Receive password
+    if(recvfrom(sockfd, password, 16, 0, (struct sockaddr*)&cli_addr, &slen) == -1) {
+      fprintf(stderr, "Error: password recvfrom()");
+    }
+
+    // Authenticate login credentials
+    if((fp = fopen("masterlist.txt", "r")) == NULL) {
+      fprintf(stderr, "Error opening master file.\n");
+      exit(0);
+    }
+    
+    // Read master text file searching for correct username and password 
+    while((len = filegetline(line, 32, fp)) > 0) {
+                 
+       if(strncmp(user, line, strlen(user)) == 0) {
+	
+	 // Send a 1 for success
+      	if(sendto(sockfd, "1", 16, 0, (struct sockaddr*)&cli_addr, slen) == -1) {
+      	  fprintf(stderr, "Error: sendto()\n");
+      	}
+      	fprintf(stdout, "%s has connected...\n", user);
+      	i = 0;
+       }
+    }
   }
   
-
-  // Messaging
-
+  // Messaging loop
   while(1) {
 
     // receive from client
@@ -82,7 +120,7 @@ int main(int argc, char** argv) {
     // send to client
     fprintf(stdout, "<%s>", NAME);
     filegetline(buf, BUFLEN, stdin);
-
+    
     if(sendto(sockfd, buf, BUFLEN, 0, (struct sockaddr*)&cli_addr, slen) == -1) {
       fprintf(stderr, "Error: sendto()\n");
     }

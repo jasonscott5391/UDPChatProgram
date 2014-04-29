@@ -1,3 +1,4 @@
+
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/types.h>
@@ -27,7 +28,7 @@ int main(int argc, char** argv) {
   fprintf(stdout, "Password: ");
   getuserpass(password, 16, stdin);
   fprintf(stdout, "\n");
-
+  
   struct sockaddr_in serv_addr;
   int sockfd;
   socklen_t slen = sizeof(serv_addr);
@@ -46,10 +47,35 @@ int main(int argc, char** argv) {
 
   
 
-  // Send username and password for authentication
+  // Send username and password then wait for authentication
   int i = 1;
+  char *auth = (char *)malloc(sizeof(char));
+
   while(i) {
-    i = 0;
+
+    // Send username
+    if(sendto(sockfd, argv[1], 16, 0, (struct sockaddr*)&serv_addr, slen) == -1) {
+      fprintf(stderr, "Error: authentication sendto(username)");
+    }
+   
+    // Send password
+    if(sendto(sockfd, password, 16, 0, (struct sockaddr*)&serv_addr, slen) == -1) {
+      fprintf(stderr, "Error: authentication sendto(password)");
+    }
+
+    // Receive authentication confirmation
+    if(recvfrom(sockfd, auth, 16, 0, (struct sockaddr*)&serv_addr, &slen) == -1) {
+      fprintf(stderr, "Error: authentication recvfrom()");
+    }
+
+    // Test returned value
+    if(strncmp(auth, "1", 1) != 0) {
+      fprintf(stderr, "Authentication failed, try again...");
+    } else {
+      fprintf(stdout, "Authentication successful...\n");
+      i = 0;
+    }     
+   
   }
 
   // Messaging
