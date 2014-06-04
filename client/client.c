@@ -1,20 +1,5 @@
-
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <termios.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#define BUFLEN 4096
-#define IP "127.0.0.1"
-#define PORT 1234
-
-int filegetline(char *, int, FILE *);
-size_t getuserpass(char *, size_t, FILE *);
+/* Copyright (C) 2014 Jason Scott */
+#include "udpchat.h"
 
 int main(int argc, char** argv) {
     
@@ -28,14 +13,15 @@ int main(int argc, char** argv) {
   fprintf(stdout, "Password: ");
   getuserpass(password, 16, stdin);
   fprintf(stdout, "\n");
-  
+
   struct sockaddr_in serv_addr;
   int sockfd;
   socklen_t slen = sizeof(serv_addr);
   char buf[BUFLEN];
-
-  if((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
+  
+  if((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
     fprintf(stderr, "Error: socket()\n");
+  }
   bzero(&serv_addr, sizeof(serv_addr));
   serv_addr.sin_family = AF_INET;
   serv_addr.sin_port = htons(PORT);
@@ -45,32 +31,33 @@ int main(int argc, char** argv) {
     exit(1);
   }
 
-  
-
   // Send username and password then wait for authentication
   int i = 1;
   char *auth = (char *)malloc(sizeof(char));
-
+  
   while(i) {
 
     // Send username
-    if(sendto(sockfd, argv[1], 16, 0, (struct sockaddr*)&serv_addr, slen) == -1) {
+    if(sendto(sockfd, argv[1], 32, 0, (struct sockaddr*)&serv_addr, slen) == -1) {
       fprintf(stderr, "Error: authentication sendto(username)");
     }
    
     // Send password
-    if(sendto(sockfd, password, 16, 0, (struct sockaddr*)&serv_addr, slen) == -1) {
+    if(sendto(sockfd, password, 32, 0, (struct sockaddr*)&serv_addr, slen) == -1) {
       fprintf(stderr, "Error: authentication sendto(password)");
     }
 
+    fprintf(stdout, "Logging in...\n");
+
     // Receive authentication confirmation
-    if(recvfrom(sockfd, auth, 16, 0, (struct sockaddr*)&serv_addr, &slen) == -1) {
-      fprintf(stderr, "Error: authentication recvfrom()");
+    if(recvfrom(sockfd, auth, 1, 0, (struct sockaddr*)&serv_addr, &slen) == -1) {
+      fprintf(stderr, "Error: authentication recvfrom()\n");
     }
 
     // Test returned value
     if(strncmp(auth, "1", 1) != 0) {
-      fprintf(stderr, "Authentication failed, try again...");
+      fprintf(stdout, "Authentication failed, re-launch...\n");
+      exit(0);
     } else {
       fprintf(stdout, "Authentication successful...\n");
       i = 0;
@@ -90,6 +77,8 @@ int main(int argc, char** argv) {
       fprintf(stderr, "Error: sendto()\n");
     }
 
+    fprintf(stdout, "Awaiting message from server\n");
+
     // receive message from server
     if(recvfrom(sockfd, buf, BUFLEN, 0, (struct sockaddr*)&serv_addr, &slen) == -1) {
      fprintf(stderr, "Error: recvfrom()");
@@ -99,42 +88,5 @@ int main(int argc, char** argv) {
   } 
    close(sockfd);
    return 0;
-
 }
 
-/* reads line from file */
-int filegetline(char s[],int lim, FILE *fp)
-{
-  int c, i;
-  for (i = 0; i < (lim-1) && (c = getc(fp)) != EOF && c != '\n'; ++i)
-    s[i] = c;
-  if (c == '\n')
-    {
-      s[i] = c;
-      ++i;
-    }
-  s[i] = '\0';
-  return i;
-}
-
-/* Reads a password by not displaying it on the screen */
-size_t getuserpass(char *line, size_t lim, FILE *fp) {
-  struct termios old, new;
-  int nread;
-     
-  /* Turn echoing off and fail if we can't. */
-  if (tcgetattr(fileno(fp), &old) != 0)
-    return -1;
-  new = old;
-  new.c_lflag &= ~ECHO;
-  if (tcsetattr(fileno(fp), TCSAFLUSH, &new) != 0)
-    return -1;
-     
-  /* Read the password. */
-  nread = filegetline(line, lim, fp);
-     
-  /* Restore terminal. */
-  (void) tcsetattr (fileno(fp), TCSAFLUSH, &old);
-     
-  return nread;
-}
